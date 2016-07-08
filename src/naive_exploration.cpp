@@ -9,6 +9,7 @@
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/mem_fun.hpp>
+#include <boost/format.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
@@ -17,6 +18,7 @@
 #include <string>
 #include <unordered_set>
 #include <functional>
+#include <set>
 
 #include <json/json.h>
 
@@ -57,6 +59,12 @@ struct payment
     return payment(target, actor, time);
   }  
   
+  struct Compare {
+    size_t operator () (const payment& c1, const payment& c2) const {
+      return c1.time < c2.time;
+    }
+  };
+
 };
 
 struct connection
@@ -140,6 +148,8 @@ typedef boost::multi_index_container<
 typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_actor;
 typedef boost::multi_index::index<connection_set,median>::type connection_set_by_rank;
 
+typedef std::set<payment, payment::Compare> payment_set;
+
 //------------------------------------------------------------------------------
 // END HEADER STUFF
 //------------------------------------------------------------------------------
@@ -170,15 +180,26 @@ void _addOrUpdateConnections_process(const payment& p, connection_set& cs, conne
     userConnections uc = *found;
     cs.erase(found);
     connection c(p);
+    // TODO: check if connection exists
     uc.connections.insert(c);
     cs.insert(uc);
   }
 }
 
-void addOrUpdateConnections(const payment& p, connection_set& cs)
+void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& ps)
 {
+  // check if new time is older than 60 seconds
+  payment_set::reverse_iterator rit = ps.rbegin();
+  if (rit != ps.rend()) {
+    std::cout << boost::format("new time(%1%); latest stored time(%2%)") % p.time % rit->time << std::endl;
+    std::cout << " (debug) time diff: " << (p.time - rit->time) << std::endl;
+    std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - rit->time) > boost::posix_time::seconds(60)) << std::endl;
+    std::cout << " (debug) is new time more than 60 seconds behind?: " << ((rit->time - p.time) > boost::posix_time::seconds(60)) << std::endl;
+  } else {
+    ps.insert(p);
+  }
+  
   connection_set_by_actor& index = cs.get<actor>();
-
   _addOrUpdateConnections_process(p, cs, index);
   _addOrUpdateConnections_process(p.reverse(), cs, index);
 }
@@ -216,21 +237,22 @@ int main() {
   std::cout.precision(2);
 
   connection_set cs;
+  payment_set ps;
 
-  payment p("Jordan-Gruber", "Jamie-Korn", "2014-03-27T04:28:20Z");
-  addOrUpdateConnections(p, cs);
+  payment p("Jordan-Gruber", "Jamie-Korn", "2016-04-07T03:33:18Z");
+  addOrUpdateConnections(p, cs, ps);
   printRank(cs);
   
   p= payment("Maryann-Berry", "Jamie-Korn", "2016-04-07T03:33:19Z");
-  addOrUpdateConnections(p, cs);
+  addOrUpdateConnections(p, cs, ps);
   printRank(cs);
 
-  p= payment("Ying-Mo", "Maryann-Berry", "2016-04-07T03:33:19Z");
-  addOrUpdateConnections(p, cs);
+  p= payment("Ying-Mo", "Maryann-Berry", "2016-04-07T03:33:20Z");
+  addOrUpdateConnections(p, cs, ps);
   printRank(cs);
   
   p= payment("Ying-Mo", "FartButt", "2016-04-07T03:44:19Z");
-  addOrUpdateConnections(p, cs);
+  addOrUpdateConnections(p, cs, ps);
   printRank(cs);
 
   
