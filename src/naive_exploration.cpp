@@ -10,17 +10,20 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/format.hpp>
+#include <boost/filesystem.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 #include <functional>
 #include <set>
 
 #include <json/json.h>
+
 
 /*------------------------------------------------------------------------------
 Payments are streamed in, parsed into timestamped connections. 
@@ -190,12 +193,21 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
 {
   // check if new time is older than 60 seconds
   payment_set::reverse_iterator rit = ps.rbegin();
+  boost::posix_time::seconds cutoff60(60);
+  
   if (rit != ps.rend()) {
     std::cout << boost::format("new time(%1%); latest stored time(%2%)") % p.time % rit->time << std::endl;
     std::cout << " (debug) time diff: " << (p.time - rit->time) << std::endl;
-    std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - rit->time) > boost::posix_time::seconds(60)) << std::endl;
-    std::cout << " (debug) is new time more than 60 seconds behind?: " << ((rit->time - p.time) > boost::posix_time::seconds(60)) << std::endl;
+    std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - rit->time) > cutoff60) << std::endl;
+    std::cout << " (debug) is new time more than 60 seconds behind?: " << ((rit->time - p.time) > cutoff60) << std::endl;
+
+    if (rit->time - p.time > cutoff60) {
+      // more than 60 seconds behind
+    } else {
+      ps.insert(p);
+    }
   } else {
+    std::cout << boost::format("first payment! new time(%1%)\n") % p.time;
     ps.insert(p);
   }
   
@@ -239,23 +251,41 @@ int main() {
   connection_set cs;
   payment_set ps;
 
-  payment p("Jordan-Gruber", "Jamie-Korn", "2016-04-07T03:33:18Z");
-  addOrUpdateConnections(p, cs, ps);
-  printRank(cs);
+  // std::cout << " (debug) pwd: " << boost::filesystem::current_path() << std::endl;
   
-  p= payment("Maryann-Berry", "Jamie-Korn", "2016-04-07T03:33:19Z");
-  addOrUpdateConnections(p, cs, ps);
-  printRank(cs);
+  Json::Value root;
+  Json::Reader jsonReader;
+  std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
+  bool parseSuccess = true;
+  std::string currline;
 
-  p= payment("Ying-Mo", "Maryann-Berry", "2016-04-07T03:33:20Z");
-  addOrUpdateConnections(p, cs, ps);
-  printRank(cs);
+  while(std::getline(jstream, currline) && parseSuccess) {
+    parseSuccess = jsonReader.parse(currline, root, false);
+    if (!parseSuccess) {
+      std::cout << "JSONReader Error: " << jsonReader.getFormattedErrorMessages() << std::endl;
+      exit(1);
+    }
+      
+    // std::cout << " (debug) root.size(): " << root.size() << std::endl;
+    // std::cout << " (debug) root.isObject(): " << root.isObject() << std::endl;
   
-  p= payment("Ying-Mo", "FartButt", "2016-04-07T03:44:19Z");
-  addOrUpdateConnections(p, cs, ps);
-  printRank(cs);
+    // std::cout << " (debug) root.getMemberNames(): ";
+    // Json::Value::Members members = root.getMemberNames();
+    // for(Json::Value::Members::iterator it = members.begin(); it != members.end(); ++it) {
+    //   std::cout << boost::format("[%1%]") % *it;
+    // }
+    // std::cout << "\n";
 
-  
+    // std::cout << " (debug) read-in JSON actor" << root["actor"] << std::endl;
+    // std::cout << " (debug) read-in JSON target" << root["target"] << std::endl;
+    // std::cout << " (debug) read-in JSON created_time" << root["created_time"] << std::endl;
+
+    // std::cout << std::endl;
+    payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
+    addOrUpdateConnections(p, cs, ps);
+    printRank(cs);
+  }
+
   std::cout << std::endl;
   print_out_by<actor>(cs);
 
