@@ -5,8 +5,11 @@
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/ranked_index.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/mem_fun.hpp>
+
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
 
@@ -98,6 +101,11 @@ struct userConnections
     connections.insert(connection(p));
   }
 
+  std::size_t degree() const
+  {
+    return connections.size();
+  }
+  
   friend std::ostream& operator << (std::ostream &out, const userConnections& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections)" << std::endl;
@@ -106,20 +114,35 @@ struct userConnections
 
 };
 
-struct actor{};
-struct target{};
-struct time{};
+//------------------------------------------------------------------------------
+// HEADER STUFF
+//------------------------------------------------------------------------------
 
+// tags
+struct actor{};
+struct median{};
 
 // define a multiply indexed set with indices by id and name
 typedef boost::multi_index_container<
   userConnections,
   boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<
-      boost::multi_index::tag<actor>, BOOST_MULTI_INDEX_MEMBER(userConnections, std::string, actor)
+      boost::multi_index::tag<actor>,
+      BOOST_MULTI_INDEX_MEMBER(userConnections, std::string, actor)
+      >,
+    boost::multi_index::ranked_non_unique<
+      boost::multi_index::tag<median>,
+      boost::multi_index::const_mem_fun<userConnections, std::size_t, &userConnections::degree>
       >
     >
   > connection_set;
+
+typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_actor;
+typedef boost::multi_index::index<connection_set,median>::type connection_set_by_rank;
+
+//------------------------------------------------------------------------------
+// END HEADER STUFF
+//------------------------------------------------------------------------------
 
 
 template<typename Tag, typename MultiIndexContainer>
@@ -133,71 +156,89 @@ void print_out_by(const MultiIndexContainer& es)
   std::copy(i.begin(), i.end(), std::ostream_iterator<value_type>(std::cout));
 }
 
-
-void addOrUpdateConnections(const payment& p, connection_set& cs)
+void _addOrUpdateConnections_process(const payment& p, connection_set& cs, connection_set_by_actor& index)
 {
-  typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_actor;
-  connection_set_by_actor& index = cs.get<actor>();
-
   connection_set_by_actor::iterator found = index.find(p.actor);
-
+      
   if (found == index.end()) {
     // dude not found
-    std::cout << p.actor << " not found" << std::endl;
+    // std::cout << "   NOT FOUND: " << p.actor << std::endl;
     cs.insert(userConnections(p));
   } else {
     // dude found
-    std::cout << "found actor: " << found->actor << std::endl;
+    // std::cout << "found actor: " << found->actor << std::endl;
     userConnections uc = *found;
     cs.erase(found);
     connection c(p);
     uc.connections.insert(c);
     cs.insert(uc);
   }
+}
 
+void addOrUpdateConnections(const payment& p, connection_set& cs)
+{
+  connection_set_by_actor& index = cs.get<actor>();
 
-  payment p2 = p.reverse();
-  connection_set_by_actor::iterator found2 = index.find(p2.actor);
-
-  if (found2 == index.end()) {
-    // dude not found
-    std::cout << p2.actor << " not found" << std::endl;
-    cs.insert(userConnections(p2));
-  } else {
-    // dude found
-    std::cout << "found actor2: " << found2->actor << std::endl;
-    userConnections uc2 = *found2;
-    cs.erase(found2);
-    connection c2(p2);
-    uc2.connections.insert(c2);
-    cs.insert(uc2);
-  }
-  
+  _addOrUpdateConnections_process(p, cs, index);
+  _addOrUpdateConnections_process(p.reverse(), cs, index);
 }
 
 
+
+
+void printRank(const connection_set& cs) {
+  const connection_set_by_rank& index = cs.get<median>();
+
+  std::size_t size = index.size();
+  double medianDegree;
+
+  // std::cout << " (debug) size: " << size << std::endl;
+
+  int idx = std::ceil((size / 2.0) - 1);
+  // std::cout << " (debug) index: " << idx << std::endl;
+  connection_set_by_rank::const_iterator it = index.nth(idx);
+
+  if (size % 2 == 0) {
+    std::size_t d1 = it->degree(), d2 = (++it)->degree();    
+    // std::cout << " (debug) median of 2: " << d1 << " and " << d2 << std::endl;
+    medianDegree = (d1 + d2)/2.0;
+  } else {
+    // std::cout << " (debug) single median: " << it->degree() << std::endl;
+    medianDegree = it->degree();
+  }
+  // std::cout << "Median: " << medianDegree << std::endl;
+  std::cout << medianDegree << std::endl;
+}
+
+
+
 int main() {
+  std::cout.precision(2);
+
   connection_set cs;
 
   payment p("Jordan-Gruber", "Jamie-Korn", "2014-03-27T04:28:20Z");
   addOrUpdateConnections(p, cs);
-  // cs.insert(userConnections(p));
-
+  printRank(cs);
+  
   p= payment("Maryann-Berry", "Jamie-Korn", "2016-04-07T03:33:19Z");
   addOrUpdateConnections(p, cs);
-  // cs.insert(userConnections(p));
+  printRank(cs);
 
   p= payment("Ying-Mo", "Maryann-Berry", "2016-04-07T03:33:19Z");
   addOrUpdateConnections(p, cs);
-  // cs.insert(userConnections(p));
+  printRank(cs);
   
   p= payment("Ying-Mo", "FartButt", "2016-04-07T03:44:19Z");
   addOrUpdateConnections(p, cs);
-  // cs.insert(userConnections(p));
+  printRank(cs);
 
   
   std::cout << std::endl;
   print_out_by<actor>(cs);
+
+  std::cout << std::endl;
+  print_out_by<median>(cs);
 
   
   return 0;
