@@ -39,11 +39,21 @@ struct payment
     std::stringstream ss(time_);
     boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
     ss.imbue(std::locale(ss.getloc(), dif));
-
+    // TODO: check for memory leak. new without delete
+    
     ss >> time;
-    std::cout << time << std::endl;
+    // std::cout << time << std::endl;
   }
+  
+  payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
+    : target(target_), actor(actor_), time(time_)
+  {}
 
+  const payment reverse() const
+  {
+    return payment(target, actor, time);
+  }  
+  
 };
 
 struct connection
@@ -124,22 +134,69 @@ void print_out_by(const MultiIndexContainer& es)
 }
 
 
+void addOrUpdateConnections(const payment& p, connection_set& cs)
+{
+  typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_actor;
+  connection_set_by_actor& index = cs.get<actor>();
+
+  connection_set_by_actor::iterator found = index.find(p.actor);
+
+  if (found == index.end()) {
+    // dude not found
+    std::cout << p.actor << " not found" << std::endl;
+    cs.insert(userConnections(p));
+  } else {
+    // dude found
+    std::cout << "found actor: " << found->actor << std::endl;
+    userConnections uc = *found;
+    cs.erase(found);
+    connection c(p);
+    uc.connections.insert(c);
+    cs.insert(uc);
+  }
+
+
+  payment p2 = p.reverse();
+  connection_set_by_actor::iterator found2 = index.find(p2.actor);
+
+  if (found2 == index.end()) {
+    // dude not found
+    std::cout << p2.actor << " not found" << std::endl;
+    cs.insert(userConnections(p2));
+  } else {
+    // dude found
+    std::cout << "found actor2: " << found2->actor << std::endl;
+    userConnections uc2 = *found2;
+    cs.erase(found2);
+    connection c2(p2);
+    uc2.connections.insert(c2);
+    cs.insert(uc2);
+  }
+  
+}
+
+
 int main() {
   connection_set cs;
 
   payment p("Jordan-Gruber", "Jamie-Korn", "2014-03-27T04:28:20Z");
-  cs.insert(userConnections(p));
+  addOrUpdateConnections(p, cs);
+  // cs.insert(userConnections(p));
 
   p= payment("Maryann-Berry", "Jamie-Korn", "2016-04-07T03:33:19Z");
-  cs.insert(userConnections(p));
+  addOrUpdateConnections(p, cs);
+  // cs.insert(userConnections(p));
 
   p= payment("Ying-Mo", "Maryann-Berry", "2016-04-07T03:33:19Z");
-  cs.insert(userConnections(p));
+  addOrUpdateConnections(p, cs);
+  // cs.insert(userConnections(p));
   
   p= payment("Ying-Mo", "FartButt", "2016-04-07T03:44:19Z");
-  cs.insert(userConnections(p));
-  
+  addOrUpdateConnections(p, cs);
+  // cs.insert(userConnections(p));
 
+  
+  std::cout << std::endl;
   print_out_by<actor>(cs);
 
   
