@@ -11,6 +11,7 @@
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/format.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/functional/hash.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
@@ -86,15 +87,16 @@ struct connection
   
   struct Hash {
     size_t operator () (const connection& c) const {
-      return std::hash<const char *>()(c.target.c_str());
-      // return std::hash<const std::string>()(c.target);
+      std::size_t seed = 0;
+      boost::hash_combine(seed, c.target);
+      return seed;
     }
   };
 
 
   friend std::ostream& operator << (std::ostream &out, const connection& c)
   {
-    out << "[" << c.target << "]";
+    out << "[" << c.target << "; " << boost::posix_time::to_simple_string(c.time) << "]";
     return out;
   }
     
@@ -119,7 +121,11 @@ struct userConnections
   
   friend std::ostream& operator << (std::ostream &out, const userConnections& uc)
   {
-    out << uc.actor << " (" << uc.connections.size() << " connections)" << std::endl;
+    out << uc.actor << " (" << uc.connections.size() << " connections; ";
+    for (auto i = uc.connections.begin(); i != uc.connections.end(); i++) {
+      out << *i << ", ";
+    }
+    out << std::endl;
     return out;
   }
 
@@ -189,29 +195,84 @@ void _addOrUpdateConnections_process(const payment& p, connection_set& cs, conne
   }
 }
 
+boost::posix_time::time_duration timeDuration60(0,1,0,0);
+boost::posix_time::time_duration timeDuration0(0,0,0,0);
+
+void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connection_set_by_actor& csIdx) {
+  connection_set_by_actor::iterator ucIter = csIdx.find(p.actor);
+  if (ucIter == csIdx.end()) {
+    // TODO: exit better
+    std::cout << "ERROR!!! Did not find user to remove connection from." << std::endl;
+    exit(1);
+  }
+  userConnections uc = *ucIter;
+  
+  connection cToMatch(p);
+  auto c = uc.connections.find(cToMatch);
+  
+  if (c == uc.connections.end()) {
+    // std::cout << "matching connection not found" << std::endl;
+  } else {
+    // std::cout << "MATCHING CONNECTION FOUND" << std::endl;
+    if (c->time == cToMatch.time) {
+      // std::cout << "  SAME TIME; removing" << std::endl;
+      uc.connections.erase(c);
+      csIdx.erase(ucIter);
+      if (uc.connections.size() > 0) {
+	csIdx.insert(uc);
+      }
+    } else {
+      // std::cout << "  not removing. newer time? " << (c->time > cToMatch.time) << std::endl;
+    }
+  }
+}
+
+void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connection_set_by_actor& csIdx) {
+  // std::cout << "  purging payment set\n";
+  payment_set::iterator it = ps.begin();
+  while(headTime - it->time > timeDuration60) {
+    // std::cout << boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % it->time % (it->time - headTime) % it->actor % it->target;
+    clearConnectionIfEstablishingPaymentIsBeingRemoved(*it, csIdx);
+    clearConnectionIfEstablishingPaymentIsBeingRemoved(it->reverse(), csIdx);
+    it = ps.erase(it);
+  }
+}
+
 void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& ps)
 {
   // check if new time is older than 60 seconds
   payment_set::reverse_iterator rit = ps.rbegin();
-  boost::posix_time::seconds cutoff60(60);
+  connection_set_by_actor& index = cs.get<actor>();
   
   if (rit != ps.rend()) {
-    std::cout << boost::format("new time(%1%); latest stored time(%2%)") % p.time % rit->time << std::endl;
-    std::cout << " (debug) time diff: " << (p.time - rit->time) << std::endl;
-    std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - rit->time) > cutoff60) << std::endl;
-    std::cout << " (debug) is new time more than 60 seconds behind?: " << ((rit->time - p.time) > cutoff60) << std::endl;
+    payment newestPayment = *rit;
+    // std::cout << boost::format("new time(%1%); latest stored time(%2%)") % p.time % newestPayment.time << std::endl;
+    // std::cout << " (debug) time diff: " << (p.time - newestPayment.time) << std::endl;
+    // std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - newestPayment.time) > timeDuration60) << std::endl;
+    // std::cout << " (debug) is new time more than 60 seconds behind?: " << ((newestPayment.time - p.time) > timeDuration60) << std::endl;
 
-    if (rit->time - p.time > cutoff60) {
+    if (newestPayment.time - p.time > timeDuration60) {
       // more than 60 seconds behind
     } else {
       ps.insert(p);
     }
+
+    if ((p.time - newestPayment.time) > timeDuration0) {
+      purgePaymentSet(ps, p.time, index);
+    } else {
+      // std::cout << "WTF? new time is not newer?" << std::endl;
+      // std::cout << boost::format("p.time (%1%); newestPayment.time (%2%)\n") % p.time % newestPayment.time;
+      // std::cout << timeDuration0 << " " << (p.time - newestPayment.time) << std::endl;
+      // std::cout << "p.time > newestPayment.time? " << (p.time > newestPayment.time) << std::endl;
+      // std::cout << "p.time < newestPayment.time? " << (p.time < newestPayment.time) << std::endl;
+    }
+
+    // std::cout << " PAYMENT SET SIZE: " << ps.size() << std::endl;
   } else {
-    std::cout << boost::format("first payment! new time(%1%)\n") % p.time;
+    // std::cout << boost::format("first payment! new time(%1%)\n") % p.time;
     ps.insert(p);
   }
   
-  connection_set_by_actor& index = cs.get<actor>();
   _addOrUpdateConnections_process(p, cs, index);
   _addOrUpdateConnections_process(p.reverse(), cs, index);
 }
@@ -219,7 +280,7 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
 
 
 
-void printRank(const connection_set& cs) {
+void printRank(const connection_set& cs, std::ofstream& resultsFile) {
   const connection_set_by_rank& index = cs.get<median>();
 
   std::size_t size = index.size();
@@ -240,7 +301,15 @@ void printRank(const connection_set& cs) {
     medianDegree = it->degree();
   }
   // std::cout << "Median: " << medianDegree << std::endl;
-  std::cout << medianDegree << std::endl;
+  resultsFile << medianDegree << std::endl;
+  // std::cout << "Median: " << medianDegree << std::endl;
+
+  // // print all degrees
+  // std::cout << "--(";
+  // for (connection_set_by_rank::iterator piter = index.begin(); piter != index.end(); piter++) {
+  //   std::cout << piter->degree() << ",";
+  // }
+  // std::cout << std::endl;
 }
 
 
@@ -256,6 +325,7 @@ int main() {
   Json::Value root;
   Json::Reader jsonReader;
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
+  std::ofstream resultsFile("../venmo_output/output.txt");
   bool parseSuccess = true;
   std::string currline;
 
@@ -264,34 +334,23 @@ int main() {
     if (!parseSuccess) {
       std::cout << "JSONReader Error: " << jsonReader.getFormattedErrorMessages() << std::endl;
       exit(1);
+      // TODO: no exit here, quit gracefully
     }
       
-    // std::cout << " (debug) root.size(): " << root.size() << std::endl;
-    // std::cout << " (debug) root.isObject(): " << root.isObject() << std::endl;
-  
-    // std::cout << " (debug) root.getMemberNames(): ";
-    // Json::Value::Members members = root.getMemberNames();
-    // for(Json::Value::Members::iterator it = members.begin(); it != members.end(); ++it) {
-    //   std::cout << boost::format("[%1%]") % *it;
-    // }
-    // std::cout << "\n";
-
-    // std::cout << " (debug) read-in JSON actor" << root["actor"] << std::endl;
-    // std::cout << " (debug) read-in JSON target" << root["target"] << std::endl;
-    // std::cout << " (debug) read-in JSON created_time" << root["created_time"] << std::endl;
-
-    // std::cout << std::endl;
     payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
+    // std::cout << boost::format("Payment from actor: %1% \n") % p.actor;
     addOrUpdateConnections(p, cs, ps);
-    printRank(cs);
+    printRank(cs, resultsFile);
   }
 
-  std::cout << std::endl;
-  print_out_by<actor>(cs);
+  jstream.close();
+  resultsFile.close();
+  
+  // std::cout << std::endl;
+  // print_out_by<actor>(cs);
 
-  std::cout << std::endl;
-  print_out_by<median>(cs);
-
+  // std::cout << std::endl;
+  // print_out_by<median>(cs);
   
   return 0;
 }

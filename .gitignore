@@ -5,3 +5,5 @@
 insight_testsuite/results.txt
 insight_testsuite/temp
 build/
+venmo_input/
+venmo_output/
