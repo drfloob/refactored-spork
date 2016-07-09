@@ -301,7 +301,7 @@ void printRank(const connection_set& cs, std::ofstream& resultsFile) {
     medianDegree = it->degree();
   }
   // std::cout << "Median: " << medianDegree << std::endl;
-  resultsFile << medianDegree << std::endl;
+  resultsFile << std::fixed << std::setprecision(2) << medianDegree << std::endl;
   // std::cout << "Median: " << medianDegree << std::endl;
 
   // // print all degrees
@@ -326,6 +326,7 @@ int main() {
   Json::Reader jsonReader;
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
   std::ofstream resultsFile("../venmo_output/output.txt");
+  
   bool parseSuccess = true;
   std::string currline;
 
