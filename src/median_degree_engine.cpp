@@ -58,14 +58,15 @@ struct payment
     : target(target_), actor(actor_), time(time_)
   {}
 
-  const payment reverse() const
+  std::shared_ptr<const payment> reverse() const
   {
-    return payment(target, actor, time);
+    std::shared_ptr<const payment> result(new payment(target, actor, time));
+    return result;
   }
 
   struct Compare {
-    size_t operator () (const payment& c1, const payment& c2) const {
-      return c1.time < c2.time;
+    size_t operator () (std::shared_ptr<const payment> c1, std::shared_ptr<const payment> c2) const {
+      return c1->time < c2->time;
     }
   };
 
@@ -76,7 +77,7 @@ struct connection
   std::string target;
   boost::posix_time::ptime time;
 
-  connection(const payment& p) :target(p.target), time(p.time) {}
+  connection(std::shared_ptr<const payment> p) :target(p->target), time(p->time) {}
 
 
   // Within a specific user's set of connections, the other party's
@@ -108,8 +109,8 @@ struct singleUserGraphView
   std::string actor;
   std::unordered_set<connection, connection::Hash> connections;
 
-  singleUserGraphView(const payment& p)
-    : actor(p.actor)
+  singleUserGraphView(std::shared_ptr<const payment> p)
+    : actor(p->actor)
   {
     connections.insert(connection(p));
   }
@@ -164,7 +165,7 @@ typedef boost::multi_index_container<
 typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_actor;
 typedef boost::multi_index::index<connection_set,median>::type connection_set_by_rank;
 
-typedef std::set<payment, payment::Compare> payment_set;
+typedef std::set<std::shared_ptr<const payment>, payment::Compare> payment_set;
 
 //------------------------------------------------------------------------------
 // END HEADER STUFF
@@ -182,9 +183,9 @@ void print_out_by(const MultiIndexContainer& es)
   std::copy(i.begin(), i.end(), std::ostream_iterator<value_type>(std::cout));
 }
 
-void _addOrUpdateConnections_process(const payment& p, connection_set& cs, connection_set_by_actor& index)
+void _addOrUpdateConnections_process(std::shared_ptr<const payment> p, connection_set& cs, connection_set_by_actor& index)
 {
-  connection_set_by_actor::iterator found = index.find(p.actor);
+  connection_set_by_actor::iterator found = index.find(p->actor);
 
   if (found == index.end()) {
     // dude not found
@@ -203,8 +204,8 @@ void _addOrUpdateConnections_process(const payment& p, connection_set& cs, conne
 boost::posix_time::time_duration timeDuration60(0,1,0,0);
 boost::posix_time::time_duration timeDuration0(0,0,0,0);
 
-void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connection_set_by_actor& csIdx) {
-  connection_set_by_actor::iterator ucIter = csIdx.find(p.actor);
+void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const payment> p, connection_set_by_actor& csIdx) {
+  connection_set_by_actor::iterator ucIter = csIdx.find(p->actor);
   if (ucIter == csIdx.end()) {
     // TODO: exit better
     std::cout << "ERROR!!! Did not find user to remove connection from." << std::endl;
@@ -235,31 +236,31 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connec
 
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connection_set_by_actor& csIdx) {
   payment_set::iterator it = ps.begin();
-  while(headTime - it->time > timeDuration60) {
+  while(headTime - (*it)->time > timeDuration60) {
     // std::cout << boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % it->time % (it->time - headTime) % it->actor % it->target;
     clearConnectionIfEstablishingPaymentIsBeingRemoved(*it, csIdx);
-    clearConnectionIfEstablishingPaymentIsBeingRemoved(it->reverse(), csIdx);
+    clearConnectionIfEstablishingPaymentIsBeingRemoved((*it)->reverse(), csIdx);
     it = ps.erase(it);
   }
 }
 
-void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& ps)
+void addOrUpdateConnections(std::shared_ptr<const payment> p, connection_set& cs, payment_set& ps)
 {
   // check if new time is older than 60 seconds
   payment_set::reverse_iterator rit = ps.rbegin();
   connection_set_by_actor& index = cs.get<actor>();
 
   if (rit != ps.rend()) {
-    payment newestPayment = *rit;
+    std::shared_ptr<const payment> newestPayment = *rit;
 
-    if (newestPayment.time - p.time > timeDuration60) {
+    if (newestPayment->time - p->time > timeDuration60) {
       // more than 60 seconds behind; do nothing
     } else {
       ps.insert(p);
     }
 
-    if ((p.time - newestPayment.time) > timeDuration0) {
-      purgePaymentSet(ps, p.time, index);
+    if ((p->time - newestPayment->time) > timeDuration0) {
+      purgePaymentSet(ps, p->time, index);
     } else {
       // payment out of order, no purge needed
     }
@@ -270,7 +271,7 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
   }
 
   _addOrUpdateConnections_process(p, cs, index);
-  _addOrUpdateConnections_process(p.reverse(), cs, index);
+  _addOrUpdateConnections_process(p->reverse(), cs, index);
 }
 
 
@@ -338,15 +339,15 @@ int main() {
       continue;
     }
 
-    payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
+    std::shared_ptr<const payment> p(new payment(root["actor"].asString(), root["target"].asString(), root["created_time"].asString()));
 
-    if (p.time.is_not_a_date_time()) {
+    if (p->time.is_not_a_date_time()) {
       // invalid date time; passing on this payment
       verboseOutput("invalid date time; passing on this payment entry");
       continue;
     }
 
-    verboseOutput("processed payment; time: " + boost::posix_time::to_simple_string(p.time));
+    verboseOutput("processed payment; time: " + boost::posix_time::to_simple_string(p->time));
 
     addOrUpdateConnections(p, cs, ps);
     printRank(cs, resultsFile);
