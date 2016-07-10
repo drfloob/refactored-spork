@@ -14,7 +14,7 @@
 {"target": "A", "actor": "B"}
 
 // invalid times
-{"created_time": "2016-07-0888888888888T22:00:22Z", "target": "A", "actor": "B"}
+{"created_time": "2016-07-088T22:00:22Z", "target": "A", "actor": "B"}
 {"created_time": "2016-07-aT22:00:22Z", "target": "A", "actor": "B"}
 
 {"created_time": "2016-07-08T22:00:22Z", "target": "A", "actor": "B"}

@@ -46,17 +46,18 @@ struct payment
     : target(target_), actor(actor_)
   {
     std::stringstream ss(time_);
+    // TODO: check for memory leak. new without delete
     boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
 
     ss.imbue(std::locale(ss.getloc(), dif));
-    ss.exceptions(std::ios_base::failbit);
-    // TODO: check for memory leak. new without delete
+    // ss.exceptions(std::ios_base::failbit);
       
-    try {
+    // try {
       ss >> time;
-    } catch(std::exception e) {
-      std::cout << "(debug) bad date; what()? " << e.what() << std::endl;
-    }
+    // } catch(std::exception e) {
+    //   // bad date; ignoring payment (see validation logic in main around `not_a_date_time`
+    //   // std::cout << "(debug) bad date; what()? " << e.what() << std::endl;
+    // }
   }
   
   payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
