@@ -2,9 +2,9 @@
 
 # clean & build
 
-if [ -d build ]; then
-    rm -r build
-fi
+# if [ -d build ]; then
+#     rm -r build
+# fi
 
 cat <<EOF > CMakeLists.txt
 cmake_minimum_required (VERSION 2.6)
@@ -23,7 +23,10 @@ set_property(TARGET JsonCpp PROPERTY FOLDER "contrib")
 target_link_libraries(Exploration JsonCpp \${Boost_LIBRARIES})
 EOF
 
-mkdir build
+if [ ! -d build ]; then
+    mkdir build
+fi
+
 cd build
 cmake -G "Unix Makefiles" ..
 make && ./Exploration
