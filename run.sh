@@ -14,13 +14,13 @@ project ("Insight Coding Challenge")
 find_package(Boost REQUIRED COMPONENTS date_time filesystem)
 include_directories(\${Boost_INCLUDE_DIRS})
 
-add_executable(Exploration src/naive_exploration.cpp)
+add_executable(MedianDegreeEngine src/median_degree_engine.cpp)
 
 set(JsonCpp_SOURCES "src/jsoncpp.cpp" "src/json/json.h" "src/json/json-forwards.h")
 add_library(JsonCpp \${JsonCpp_SOURCES})
 set_property(TARGET JsonCpp PROPERTY FOLDER "contrib")
 
-target_link_libraries(Exploration JsonCpp \${Boost_LIBRARIES})
+target_link_libraries(MedianDegreeEngine JsonCpp \${Boost_LIBRARIES})
 EOF
 
 if [ ! -d build ]; then
@@ -30,4 +30,4 @@ fi
 cd build
 #cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" ..
 cmake -G "Unix Makefiles" ..
-make && ./Exploration
+make && ./MedianDegreeEngine
