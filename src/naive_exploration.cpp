@@ -51,7 +51,6 @@ struct payment
     // TODO: check for memory leak. new without delete
     
     ss >> time;
-    // std::cout << time << std::endl;
   }
   
   payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
@@ -181,11 +180,9 @@ void _addOrUpdateConnections_process(const payment& p, connection_set& cs, conne
       
   if (found == index.end()) {
     // dude not found
-    // std::cout << "   NOT FOUND: " << p.actor << std::endl;
     cs.insert(userConnections(p));
   } else {
     // dude found
-    // std::cout << "found actor: " << found->actor << std::endl;
     userConnections uc = *found;
     cs.erase(found);
     connection c(p);
@@ -211,24 +208,24 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connec
   auto c = uc.connections.find(cToMatch);
   
   if (c == uc.connections.end()) {
-    // std::cout << "matching connection not found" << std::endl;
+    // matching connection not found; do nothing
   } else {
-    // std::cout << "MATCHING CONNECTION FOUND" << std::endl;
+    // matching connection found
     if (c->time == cToMatch.time) {
-      // std::cout << "  SAME TIME; removing" << std::endl;
+      // same timestamp, remove the connection
       uc.connections.erase(c);
       csIdx.erase(ucIter);
       if (uc.connections.size() > 0) {
 	csIdx.insert(uc);
       }
     } else {
-      // std::cout << "  not removing. newer time? " << (c->time > cToMatch.time) << std::endl;
+      // connection with newer(?) time exists
+      // TODO: assert timestamp is newer
     }
   }
 }
 
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connection_set_by_actor& csIdx) {
-  // std::cout << "  purging payment set\n";
   payment_set::iterator it = ps.begin();
   while(headTime - it->time > timeDuration60) {
     // std::cout << boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % it->time % (it->time - headTime) % it->actor % it->target;
@@ -246,13 +243,9 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
   
   if (rit != ps.rend()) {
     payment newestPayment = *rit;
-    // std::cout << boost::format("new time(%1%); latest stored time(%2%)") % p.time % newestPayment.time << std::endl;
-    // std::cout << " (debug) time diff: " << (p.time - newestPayment.time) << std::endl;
-    // std::cout << " (debug) is new time more than 60 seconds ahead?: " << ((p.time - newestPayment.time) > timeDuration60) << std::endl;
-    // std::cout << " (debug) is new time more than 60 seconds behind?: " << ((newestPayment.time - p.time) > timeDuration60) << std::endl;
 
     if (newestPayment.time - p.time > timeDuration60) {
-      // more than 60 seconds behind
+      // more than 60 seconds behind; do nothing
     } else {
       ps.insert(p);
     }
@@ -260,16 +253,11 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
     if ((p.time - newestPayment.time) > timeDuration0) {
       purgePaymentSet(ps, p.time, index);
     } else {
-      // std::cout << "WTF? new time is not newer?" << std::endl;
-      // std::cout << boost::format("p.time (%1%); newestPayment.time (%2%)\n") % p.time % newestPayment.time;
-      // std::cout << timeDuration0 << " " << (p.time - newestPayment.time) << std::endl;
-      // std::cout << "p.time > newestPayment.time? " << (p.time > newestPayment.time) << std::endl;
-      // std::cout << "p.time < newestPayment.time? " << (p.time < newestPayment.time) << std::endl;
+      // payment out of order, no purge needed
     }
 
-    // std::cout << " PAYMENT SET SIZE: " << ps.size() << std::endl;
   } else {
-    // std::cout << boost::format("first payment! new time(%1%)\n") % p.time;
+    // initializing payment recieved
     ps.insert(p);
   }
   
@@ -286,30 +274,16 @@ void printRank(const connection_set& cs, std::ofstream& resultsFile) {
   std::size_t size = index.size();
   double medianDegree;
 
-  // std::cout << " (debug) size: " << size << std::endl;
-
   int idx = std::ceil((size / 2.0) - 1);
-  // std::cout << " (debug) index: " << idx << std::endl;
   connection_set_by_rank::const_iterator it = index.nth(idx);
 
   if (size % 2 == 0) {
     std::size_t d1 = it->degree(), d2 = (++it)->degree();    
-    // std::cout << " (debug) median of 2: " << d1 << " and " << d2 << std::endl;
     medianDegree = (d1 + d2)/2.0;
   } else {
-    // std::cout << " (debug) single median: " << it->degree() << std::endl;
     medianDegree = it->degree();
   }
-  // std::cout << "Median: " << medianDegree << std::endl;
   resultsFile << std::fixed << std::setprecision(2) << medianDegree << std::endl;
-  // std::cout << "Median: " << medianDegree << std::endl;
-
-  // // print all degrees
-  // std::cout << "--(";
-  // for (connection_set_by_rank::iterator piter = index.begin(); piter != index.end(); piter++) {
-  //   std::cout << piter->degree() << ",";
-  // }
-  // std::cout << std::endl;
 }
 
 
@@ -320,8 +294,6 @@ int main() {
   connection_set cs;
   payment_set ps;
 
-  // std::cout << " (debug) pwd: " << boost::filesystem::current_path() << std::endl;
-  
   Json::Value root;
   Json::Reader jsonReader;
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
@@ -337,9 +309,11 @@ int main() {
       exit(1);
       // TODO: no exit here, quit gracefully
     }
+
+    // TODO: check for correct payment entry format, discard if invalid
       
     payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
-    // std::cout << boost::format("Payment from actor: %1% \n") % p.actor;
+
     addOrUpdateConnections(p, cs, ps);
     printRank(cs, resultsFile);
   }
