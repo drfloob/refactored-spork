@@ -28,5 +28,6 @@ if [ ! -d build ]; then
 fi
 
 cd build
+#cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" ..
 cmake -G "Unix Makefiles" ..
 make && ./Exploration

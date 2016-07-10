@@ -45,17 +45,16 @@ struct payment
   payment(const std::string& actor_, const std::string& target_, const std::string& time_)
     : target(target_), actor(actor_)
   {
-    // 2014-03-27T04:28:20Z
-    try {
-      std::stringstream ss(time_);
-      boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
+    std::stringstream ss(time_);
+    boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
 
-      ss.imbue(std::locale(ss.getloc(), dif));
-      ss.exceptions(std::ios_base::failbit);
-      // TODO: check for memory leak. new without delete
+    ss.imbue(std::locale(ss.getloc(), dif));
+    ss.exceptions(std::ios_base::failbit);
+    // TODO: check for memory leak. new without delete
       
+    try {
       ss >> time;
-    } catch(std::ios_base::failure e) {
+    } catch(std::exception e) {
       std::cout << "(debug) bad date; what()? " << e.what() << std::endl;
     }
   }
