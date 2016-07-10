@@ -28,13 +28,13 @@
 
 
 /*------------------------------------------------------------------------------
-Payments are streamed in, parsed into timestamped connections. 
+  Payments are streamed in, parsed into timestamped connections.
 
-The set of connections by user (userConnections) is located for each user.
+  The set of connections by user (userConnections) is located for each user.
 
-The new connection is added if not already present, otherwise the timestamp is 
-updated.
-------------------------------------------------------------------------------*/
+  The new connection is added if not already present, otherwise the timestamp is
+  updated.
+  ------------------------------------------------------------------------------*/
 
 struct payment
 {
@@ -50,10 +50,10 @@ struct payment
     boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
 
     ss.imbue(std::locale(ss.getloc(), dif));
-      
+
     ss >> time;
   }
-  
+
   payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
     : target(target_), actor(actor_), time(time_)
   {}
@@ -61,8 +61,8 @@ struct payment
   const payment reverse() const
   {
     return payment(target, actor, time);
-  }  
-  
+  }
+
   struct Compare {
     size_t operator () (const payment& c1, const payment& c2) const {
       return c1.time < c2.time;
@@ -84,7 +84,7 @@ struct connection
   bool operator == (const connection& c2) const {
     return target == c2.target;
   }
-  
+
   struct Hash {
     size_t operator () (const connection& c) const {
       std::size_t seed = 0;
@@ -99,7 +99,7 @@ struct connection
     out << "[" << c.target << "; " << boost::posix_time::to_simple_string(c.time) << "]";
     return out;
   }
-    
+
 };
 
 
@@ -118,7 +118,7 @@ struct userConnections
   {
     return connections.size();
   }
-  
+
   friend std::ostream& operator << (std::ostream &out, const userConnections& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
@@ -170,7 +170,7 @@ void print_out_by(const MultiIndexContainer& es)
   // get a view to index #1 (name)
   const typename boost::multi_index::index<MultiIndexContainer, Tag>::type& i = boost::multi_index::get<Tag>(es);
   typedef typename MultiIndexContainer::value_type value_type;
-  
+
   // use name_index as a regular std::set
   std::copy(i.begin(), i.end(), std::ostream_iterator<value_type>(std::cout));
 }
@@ -178,7 +178,7 @@ void print_out_by(const MultiIndexContainer& es)
 void _addOrUpdateConnections_process(const payment& p, connection_set& cs, connection_set_by_actor& index)
 {
   connection_set_by_actor::iterator found = index.find(p.actor);
-      
+
   if (found == index.end()) {
     // dude not found
     cs.insert(userConnections(p));
@@ -204,10 +204,10 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connec
     exit(1);
   }
   userConnections uc = *ucIter;
-  
+
   connection cToMatch(p);
   auto c = uc.connections.find(cToMatch);
-  
+
   if (c == uc.connections.end()) {
     // matching connection not found; do nothing
   } else {
@@ -241,7 +241,7 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
   // check if new time is older than 60 seconds
   payment_set::reverse_iterator rit = ps.rbegin();
   connection_set_by_actor& index = cs.get<actor>();
-  
+
   if (rit != ps.rend()) {
     payment newestPayment = *rit;
 
@@ -261,7 +261,7 @@ void addOrUpdateConnections(const payment& p, connection_set& cs, payment_set& p
     // initializing payment recieved
     ps.insert(p);
   }
-  
+
   _addOrUpdateConnections_process(p, cs, index);
   _addOrUpdateConnections_process(p.reverse(), cs, index);
 }
@@ -279,7 +279,7 @@ void printRank(const connection_set& cs, std::ofstream& resultsFile) {
   connection_set_by_rank::const_iterator it = index.nth(idx);
 
   if (size % 2 == 0) {
-    std::size_t d1 = it->degree(), d2 = (++it)->degree();    
+    std::size_t d1 = it->degree(), d2 = (++it)->degree();
     medianDegree = (d1 + d2)/2.0;
   } else {
     medianDegree = it->degree();
@@ -299,7 +299,7 @@ int main() {
   Json::Reader jsonReader;
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
   std::ofstream resultsFile("../venmo_output/output.txt");
-  
+
   bool parseSuccess;
   std::string currline;
 
@@ -332,13 +332,13 @@ int main() {
     }
 
     payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
-    
+
     if (p.time.is_not_a_date_time()) {
       // invalid date time; passing on this payment
       std::cout << "(debug) invalid date time; passing on this payment entry" << std::endl;
       continue;
     }
-    
+
     std::cout << "(debug) processed payment; time: " << p.time << std::endl;
 
     addOrUpdateConnections(p, cs, ps);
@@ -347,12 +347,12 @@ int main() {
 
   jstream.close();
   resultsFile.close();
-  
+
   // std::cout << std::endl;
   // print_out_by<actor>(cs);
 
   // std::cout << std::endl;
   // print_out_by<median>(cs);
-  
+
   return 0;
 }
