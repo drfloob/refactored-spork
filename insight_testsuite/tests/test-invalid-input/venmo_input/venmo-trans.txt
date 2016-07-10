@@ -1,0 +1,22 @@
+/* comment! */
+
+/* blank line above! */
+// the result should be 1 1 2
+
+// blank entries
+{"created_time": "2016-07-08T22:00:22Z", "target": "A", "actor": ""}
+{"created_time": "2016-07-08T22:00:22Z", "target": "", "actor": "B"}
+{"created_time": "", "target": "A", "actor": "B"}
+
+// missing entries
+{"created_time": "2016-07-08T22:00:22Z", "target": "A"}
+{"created_time": "2016-07-08T22:00:22Z", "actor": "B"}
+{"target": "A", "actor": "B"}
+
+// invalid times
+{"created_time": "2016-07-0888888888888T22:00:22Z", "target": "A", "actor": "B"}
+{"created_time": "2016-07-aT22:00:22Z", "target": "A", "actor": "B"}
+
+{"created_time": "2016-07-08T22:00:22Z", "target": "A", "actor": "B"}
+{"created_time": "2016-07-08T22:00:22Z", "target": "B", "actor": "C"}
+{"created_time": "2016-07-08T22:00:22Z", "target": "A", "actor": "C"}
