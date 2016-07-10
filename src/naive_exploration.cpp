@@ -12,6 +12,7 @@
 #include <boost/format.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
@@ -299,20 +300,46 @@ int main() {
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
   std::ofstream resultsFile("../venmo_output/output.txt");
   
-  bool parseSuccess = true;
+  bool parseSuccess;
   std::string currline;
 
-  while(std::getline(jstream, currline) && parseSuccess) {
+  while(std::getline(jstream, currline)) {
+    std::cout << "(debug) read value: " << currline << std::endl;
+
     parseSuccess = jsonReader.parse(currline, root, false);
     if (!parseSuccess) {
+      std::cout << "discarding payment input; invalid json" << std::endl;
       std::cout << "JSONReader Error: " << jsonReader.getFormattedErrorMessages() << std::endl;
-      exit(1);
-      // TODO: no exit here, quit gracefully
+      continue;
     }
 
     // TODO: check for correct payment entry format, discard if invalid
-      
+    if (!root.isMember("actor") || boost::trim_copy(root["actor"].asString()) == "") {
+      // invalid actor field; passing on this payment entry
+      std::cout << "(debug) invalid actor field; passing on this payment entry" << std::endl;
+      continue;
+    }
+    if (!root.isMember("target") || boost::trim_copy(root["target"].asString()) == "") {
+      // invalid target field; passing on this payment entry
+      std::cout << "(debug) invalid target field; passing on this payment entry" << std::endl;
+      continue;
+    }
+    if (!root.isMember("created_time")) {
+      // missing created_time field; passing on this payment
+      // validation will happen in payment constructor
+      std::cout << "(debug) missing created_time field; passing on this payment entry" << std::endl;
+      continue;
+    }
+
     payment p(root["actor"].asString(), root["target"].asString(), root["created_time"].asString());
+    
+    if (p.time.is_not_a_date_time()) {
+      // invalid date time; passing on this payment
+      std::cout << "(debug) invalid date time; passing on this payment entry" << std::endl;
+      continue;
+    }
+    
+    std::cout << "(debug) processed payment; time: " << p.time << std::endl;
 
     addOrUpdateConnections(p, cs, ps);
     printRank(cs, resultsFile);
