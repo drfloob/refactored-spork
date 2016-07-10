@@ -98,10 +98,10 @@ boost::posix_time::time_duration timeDuration60(0,1,0,0);
 boost::posix_time::time_duration timeDuration0(0,0,0,0);
 
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime) {
-  std::cout << "  in purge\n";
+  // std::cout << "  in purge\n";
   payment_set::iterator it = ps.begin();
   while(headTime - it->time > timeDuration60) {
-    std::cout << boost::format("  purging; time(%1%) actor(%2%) target(%3%)\n") % it->time % it->actor % it->target;
+    // std::cout << boost::format("  purging; time(%1%) actor(%2%) target(%3%)\n") % it->time % it->actor % it->target;
     it = ps.erase(it);
   }
 }
@@ -115,14 +115,14 @@ void processPayment(const payment& p, payment_set& ps)
     payment newestPayment = *rit;
 
     if (newestPayment.time - p.time > timeDuration60) {
-      std::cout << "  more than 60 seconds old\n";
+      // std::cout << "  more than 60 seconds old\n";
       // more than 60 seconds behind; do nothing
     } else {
-      std::cout << "  insert 1\n";
-      std::cout << boost::format("    inserting; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
-      std::cout << boost::format("    ps.size before insert 1(%1%)\n") % ps.size();
+      // std::cout << "  insert 1\n";
+      // std::cout << boost::format("    inserting; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
+      // std::cout << boost::format("    ps.size before insert 1(%1%)\n") % ps.size();
       ps.insert(p);
-      std::cout << boost::format("    ps.size after insert 1(%1%)\n") % ps.size();
+      // std::cout << boost::format("    ps.size after insert 1(%1%)\n") % ps.size();
     }
 
     if ((p.time - newestPayment.time) > timeDuration0) {
@@ -133,10 +133,10 @@ void processPayment(const payment& p, payment_set& ps)
 
   } else {
     // initializing payment recieved
-      std::cout << "  insert 2\n";
+      // std::cout << "  insert 2\n";
     ps.insert(p);
   }
-  std::cout << boost::format("    (in processPayment) ps.size(%1%)\n") % ps.size();
+  // std::cout << boost::format("    (in processPayment) ps.size(%1%)\n") % ps.size();
 }
 
 
@@ -154,7 +154,7 @@ void printRank(const std::vector<size_t> degrees, std::ofstream& resultsFile) {
 }
 
 void _bcv(const payment& p, user_connection_set& uc) {
-  std::cout << boost::format("  building connection; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
+  // std::cout << boost::format("  building connection; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
 
   user_connection_set::iterator uiter = uc.find(p.actor);
   if (uiter == uc.end()) {
@@ -163,17 +163,17 @@ void _bcv(const payment& p, user_connection_set& uc) {
   } else {
     connection_set::const_iterator citer = uiter->second->connections.find(p.target);
     if (citer == uiter->second->connections.end()) {
-      std::cout << "FouND CONNECTION " << p.target << std::endl;
+      // std::cout << "FouND CONNECTION " << p.target << std::endl;
       uiter->second->connections.insert(p.target);
     } else {
-      std::cout << "DID NOT FIND CONNECTION " << p.target << std::endl;
+      // std::cout << "DID NOT FIND CONNECTION " << p.target << std::endl;
       // connection exists, do nothing
     }
   }
 }
 
 void buildConnectionsVector(const payment_set& ps, user_connection_set& uc) {
-  std::cout << boost::format("    ps.size(%1%)\n") % ps.size();
+  // std::cout << boost::format("    ps.size(%1%)\n") % ps.size();
   for(payment_set::const_iterator piter = ps.begin(); piter != ps.end(); piter++) {
     _bcv(*piter, uc);
     _bcv(piter->reverse(), uc);
@@ -184,9 +184,9 @@ std::vector<size_t> findDegrees(const user_connection_set& uc) {
   std::vector<size_t> degrees;
   for(user_connection_set::const_iterator uciter = uc.begin(); uciter != uc.end(); uciter++) {
     degrees.push_back(uciter->second->degree());
-    std::cout << boost::format("  user(%1%) degree(%2%)\n") % uciter->second->actor % uciter->second->degree();
+    // std::cout << boost::format("  user(%1%) degree(%2%)\n") % uciter->second->actor % uciter->second->degree();
   }
-  std::cout << std::endl;
+  // std::cout << std::endl;
   std::sort(degrees.begin(), degrees.end());
   return degrees;
 }
@@ -241,7 +241,7 @@ int main() {
       continue;
     }
     
-    std::cout << boost::format("(debug) processed payment; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
+    // std::cout << boost::format("(debug) processed payment; time(%1%) actor(%2%) target(%3%)\n") % p.time % p.actor % p.target;
 
     processPayment(p, ps);
     uc.clear();
