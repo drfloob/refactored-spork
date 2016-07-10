@@ -50,14 +50,8 @@ struct payment
     boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
 
     ss.imbue(std::locale(ss.getloc(), dif));
-    // ss.exceptions(std::ios_base::failbit);
       
-    // try {
-      ss >> time;
-    // } catch(std::exception e) {
-    //   // bad date; ignoring payment (see validation logic in main around `not_a_date_time`
-    //   // std::cout << "(debug) bad date; what()? " << e.what() << std::endl;
-    // }
+    ss >> time;
   }
   
   payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
