@@ -30,7 +30,7 @@
 /*------------------------------------------------------------------------------
   Payments are streamed in, parsed into timestamped connections.
 
-  The set of connections by user (userConnections) is located for each user.
+  The set of connections by user (singleUserGraphView) is located for each user.
 
   The new connection is added if not already present, otherwise the timestamp is
   updated.
@@ -103,12 +103,12 @@ struct connection
 };
 
 
-struct userConnections
+struct singleUserGraphView
 {
   std::string actor;
   std::unordered_set<connection, connection::Hash> connections;
 
-  userConnections(const payment& p)
+  singleUserGraphView(const payment& p)
     : actor(p.actor)
   {
     connections.insert(connection(p));
@@ -119,7 +119,7 @@ struct userConnections
     return connections.size();
   }
 
-  friend std::ostream& operator << (std::ostream &out, const userConnections& uc)
+  friend std::ostream& operator << (std::ostream &out, const singleUserGraphView& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
     for (auto i = uc.connections.begin(); i != uc.connections.end(); i++) {
@@ -148,15 +148,15 @@ struct median{};
 
 // define a multiply indexed set with indices by id and name
 typedef boost::multi_index_container<
-  userConnections,
+  singleUserGraphView,
   boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<
       boost::multi_index::tag<actor>,
-      BOOST_MULTI_INDEX_MEMBER(userConnections, std::string, actor)
+      BOOST_MULTI_INDEX_MEMBER(singleUserGraphView, std::string, actor)
       >,
     boost::multi_index::ranked_non_unique<
       boost::multi_index::tag<median>,
-      boost::multi_index::const_mem_fun<userConnections, std::size_t, &userConnections::degree>
+      boost::multi_index::const_mem_fun<singleUserGraphView, std::size_t, &singleUserGraphView::degree>
       >
     >
   > connection_set;
@@ -188,10 +188,10 @@ void _addOrUpdateConnections_process(const payment& p, connection_set& cs, conne
 
   if (found == index.end()) {
     // dude not found
-    cs.insert(userConnections(p));
+    cs.insert(singleUserGraphView(p));
   } else {
     // dude found
-    userConnections uc = *found;
+    singleUserGraphView uc = *found;
     cs.erase(found);
     connection c(p);
     // TODO: check if connection exists
@@ -210,7 +210,7 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(const payment& p, connec
     std::cout << "ERROR!!! Did not find user to remove connection from." << std::endl;
     exit(1);
   }
-  userConnections uc = *ucIter;
+  singleUserGraphView uc = *ucIter;
 
   connection cToMatch(p);
   auto c = uc.connections.find(cToMatch);
