@@ -131,6 +131,13 @@ struct userConnections
 
 };
 
+void verboseOutput(const std::string& msg)
+{
+#if !defined(NDEBUG)
+  std::cout << "(debug) " << msg << std::endl;
+#endif
+}
+
 //------------------------------------------------------------------------------
 // HEADER STUFF
 //------------------------------------------------------------------------------
@@ -300,34 +307,34 @@ int main() {
   std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
   std::ofstream resultsFile("../venmo_output/output.txt");
 
-  bool parseSuccess;
+  bool parseSuccess = false;
   std::string currline;
 
   while(std::getline(jstream, currline)) {
-    std::cout << "(debug) read value: " << currline << std::endl;
+    verboseOutput("read value: " + currline);
 
     parseSuccess = jsonReader.parse(currline, root, false);
     if (!parseSuccess) {
-      std::cout << "discarding payment input; invalid json" << std::endl;
-      std::cout << "JSONReader Error: " << jsonReader.getFormattedErrorMessages() << std::endl;
+      verboseOutput("discarding payment input; invalid json");
+      verboseOutput("JSONReader Error: " + jsonReader.getFormattedErrorMessages());
       continue;
     }
 
     // TODO: check for correct payment entry format, discard if invalid
     if (!root.isMember("actor") || boost::trim_copy(root["actor"].asString()) == "") {
       // invalid actor field; passing on this payment entry
-      std::cout << "(debug) invalid actor field; passing on this payment entry" << std::endl;
+      verboseOutput("invalid actor field; passing on this payment entry");
       continue;
     }
     if (!root.isMember("target") || boost::trim_copy(root["target"].asString()) == "") {
       // invalid target field; passing on this payment entry
-      std::cout << "(debug) invalid target field; passing on this payment entry" << std::endl;
+      verboseOutput("invalid target field; passing on this payment entry");
       continue;
     }
     if (!root.isMember("created_time")) {
       // missing created_time field; passing on this payment
       // validation will happen in payment constructor
-      std::cout << "(debug) missing created_time field; passing on this payment entry" << std::endl;
+      verboseOutput("missing created_time field; passing on this payment entry");
       continue;
     }
 
@@ -335,11 +342,11 @@ int main() {
 
     if (p.time.is_not_a_date_time()) {
       // invalid date time; passing on this payment
-      std::cout << "(debug) invalid date time; passing on this payment entry" << std::endl;
+      verboseOutput("invalid date time; passing on this payment entry");
       continue;
     }
 
-    std::cout << "(debug) processed payment; time: " << p.time << std::endl;
+    verboseOutput("processed payment; time: " + boost::posix_time::to_simple_string(p.time));
 
     addOrUpdateConnections(p, cs, ps);
     printRank(cs, resultsFile);
