@@ -46,6 +46,7 @@ function setup_testing_input_output {
 
   cp -r ${PROJECT_PATH}/src ${TEST_OUTPUT_PATH}
   cp -r ${PROJECT_PATH}/run.sh ${TEST_OUTPUT_PATH}
+  cp -r ${PROJECT_PATH}/build ${TEST_OUTPUT_PATH}
   cp -r ${PROJECT_PATH}/venmo_input ${TEST_OUTPUT_PATH}
   cp -r ${PROJECT_PATH}/venmo_output ${TEST_OUTPUT_PATH}
 
