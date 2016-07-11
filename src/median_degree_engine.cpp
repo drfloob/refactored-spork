@@ -169,9 +169,8 @@ void verboseOutput(const std::string& msg)
 struct actor{};
 struct median{};
 
-// define a multiply indexed set with indices by id and name
 typedef boost::multi_index_container<
-  singleUserGraphView,
+  boost::shared_ptr<singleUserGraphView>,
   boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<
       boost::multi_index::tag<actor>,
@@ -211,13 +210,13 @@ void _addOrUpdateConnections_process(std::shared_ptr<const payment> p, connectio
 
   if (found == index.end()) {
     // dude not found
-    cs.insert(singleUserGraphView(p));
+    cs.insert(boost::shared_ptr<singleUserGraphView>(new singleUserGraphView(p)));
   } else {
     // dude found
-    singleUserGraphView uc = *found;
+    boost::shared_ptr<singleUserGraphView> uc = *found;
     cs.erase(found);
 
-    uc.addOrUpdateOrIgnoreIfItsAnOldConnection(p);
+    uc->addOrUpdateOrIgnoreIfItsAnOldConnection(p);
 
     cs.insert(uc);
   }
@@ -233,20 +232,20 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
     std::cout << "ERROR!!! Did not find user to remove connection from." << std::endl;
     exit(1);
   }
-  singleUserGraphView uc = *ucIter;
+  boost::shared_ptr<singleUserGraphView> uc = *ucIter;
 
   connection cToMatch(p);
-  auto c = uc.connections.find(cToMatch);
+  auto c = uc->connections.find(cToMatch);
 
-  if (c == uc.connections.end()) {
+  if (c == uc->connections.end()) {
     // matching connection not found; do nothing
   } else {
     // matching connection found
     if (c->time == cToMatch.time) {
       // same timestamp, remove the connection
-      uc.connections.erase(c);
+      uc->connections.erase(c);
       csIdx.erase(ucIter);
-      if (uc.connections.size() > 0) {
+      if (uc->connections.size() > 0) {
 	csIdx.insert(uc);
       }
     } else {
@@ -310,10 +309,10 @@ void printRank(const connection_set& cs, std::ofstream& resultsFile) {
   connection_set_by_rank::const_iterator it = index.nth(idx);
 
   if (size % 2 == 0) {
-    std::size_t d1 = it->degree(), d2 = (++it)->degree();
+    std::size_t d1 = (*it)->degree(), d2 = (*(++it))->degree();
     medianDegree = (d1 + d2)/2.0;
   } else {
-    medianDegree = it->degree();
+    medianDegree = (*it)->degree();
   }
   resultsFile << std::fixed << std::setprecision(2) << medianDegree << std::endl;
 }
