@@ -34,6 +34,10 @@ std::locale defaultLocale("");
 std::locale localeWithFacet(defaultLocale,
 			    new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
 
+const std::string INPUT_FILE = "../venmo_input/venmo-trans.txt";
+const std::string OUTPUT_FILE = "../venmo_output/output.txt";
+
+
 /*------------------------------------------------------------------------------
   Payments are streamed in, parsed into timestamped connections.
 
@@ -349,8 +353,8 @@ int main() {
 
   Json::Value root;
   Json::Reader jsonReader;
-  std::ifstream jstream("../venmo_input/venmo-trans.txt", std::ifstream::binary);
-  std::ofstream resultsFile("../venmo_output/output.txt");
+  std::ifstream jstream(INPUT_FILE, std::ifstream::binary);
+  std::ofstream resultsFile(OUTPUT_FILE);
 
   bool parseSuccess = false;
   std::string currline;
