@@ -231,7 +231,7 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
   connection_set_by_actor::iterator ucIter = csIdx.find(p->actor);
   if (ucIter == csIdx.end()) {
     // TODO: exit better
-    std::cout << "ERROR!!! Did not find user to remove connection from." << std::endl;
+    std::cout << "ERROR!!! Did not find user to remove connection from. " << p->actor << " " << p->target << " " << p->time << std::endl;
     exit(1);
   }
   boost::shared_ptr<singleUserGraphView> uc = *ucIter;
