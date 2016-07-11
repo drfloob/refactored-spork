@@ -275,12 +275,16 @@ void addOrUpdateConnections(std::shared_ptr<const payment> p, connection_set& cs
   payment_set::reverse_iterator rit = ps.rbegin();
   connection_set_by_actor& index = cs.get<actor>();
 
+  bool inserted = false;
+
   if (rit != ps.rend()) {
     std::shared_ptr<const payment> newestPayment = *rit;
 
     if (newestPayment->time - p->time > timeDuration60) {
       // more than 60 seconds behind; do nothing
+      verboseOutput("  60 behind; not adding");
     } else {
+      inserted = true;
       ps.insert(p);
     }
 
@@ -292,11 +296,14 @@ void addOrUpdateConnections(std::shared_ptr<const payment> p, connection_set& cs
 
   } else {
     // initializing payment recieved
+    inserted = true;
     ps.insert(p);
   }
 
-  _addOrUpdateConnections_process(p, cs, index);
-  _addOrUpdateConnections_process(p->reverse(), cs, index);
+  if (inserted) {
+    _addOrUpdateConnections_process(p, cs, index);
+    _addOrUpdateConnections_process(p->reverse(), cs, index);
+  }
 }
 
 
