@@ -152,7 +152,7 @@ struct singleUserGraphView
   friend std::ostream& operator << (std::ostream &out, const singleUserGraphView& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
-    for (auto i = uc.connections.begin(); i != uc.connections.end(); i++) {
+    for (std::unordered_set<connection, connection::Hash>::iterator i = uc.connections.begin(); i != uc.connections.end(); i++) {
       out << *i << ", ";
     }
     out << std::endl;
@@ -229,8 +229,8 @@ void _addOrUpdateConnections_process(std::shared_ptr<const payment> p, connectio
   }
 }
 
-boost::posix_time::time_duration timeDuration60(0,1,0,0);
-boost::posix_time::time_duration timeDuration0(0,0,0,0);
+const boost::posix_time::time_duration timeDuration60(0,1,0,0);
+const boost::posix_time::time_duration timeDuration0(0,0,0,0);
 
 void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const payment> p, connection_set_by_actor& csIdx) {
   connection_set_by_actor::iterator ucIter = csIdx.find(p->actor);
@@ -242,7 +242,7 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
   boost::shared_ptr<singleUserGraphView> uc = *ucIter;
 
   connection cToMatch(p);
-  auto c = uc->connections.find(cToMatch);
+  std::unordered_set<connection, connection::Hash>::const_iterator c = uc->connections.find(cToMatch);
 
   if (c == uc->connections.end()) {
     // matching connection not found; do nothing
@@ -253,7 +253,7 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
       uc->connections.erase(c);
       csIdx.erase(ucIter);
       if (uc->connections.size() > 0) {
-	csIdx.insert(uc);
+        csIdx.insert(uc);
       }
     } else {
       // connection with newer(?) time exists
