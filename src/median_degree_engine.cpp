@@ -145,6 +145,10 @@ struct singleUserGraphView
     // TODO: check if connection exists
   }
 
+  const std::string debugPrint() const {
+    return (boost::format("%1% (%2% conn)") % actor % connections.size()).str();
+  }
+
   friend std::ostream& operator << (std::ostream &out, const singleUserGraphView& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
@@ -262,7 +266,7 @@ void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connect
   payment_set::iterator it = ps.begin();
   verboseOutput("PURGING");
   while(headTime - (*it)->time > timeDuration60) {
-    verboseOutput((boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % (*it)->time % ((*it)->time - headTime) % (*it)->actor % (*it)->target).str());
+    verboseOutput((boost::format("  erasing %1% (%2% old, %3% to %4%)\n") % (*it)->time % ((*it)->time - headTime) % (*it)->actor % (*it)->target).str());
     clearConnectionIfEstablishingPaymentIsBeingRemoved(*it, csIdx);
     clearConnectionIfEstablishingPaymentIsBeingRemoved((*it)->reverse(), csIdx);
     it = ps.erase(it);
@@ -324,6 +328,14 @@ void printRank(const connection_set& cs, std::ofstream& resultsFile) {
   } else {
     medianDegree = (*it)->degree();
   }
+
+#if !defined(NDEBUG)
+  for (connection_set_by_rank::const_iterator iter = index.begin(); iter != index.end(); iter++) {
+    verboseOutput((boost::format("    %1%") % (*iter)->debugPrint()).str());
+  }
+#endif
+
+  verboseOutput((boost::format("MEDIAN DEGREE: %1%\n") % medianDegree).str());
   resultsFile << std::fixed << std::setprecision(2) << medianDegree << std::endl;
 }
 
@@ -377,7 +389,7 @@ int main() {
       continue;
     }
 
-    verboseOutput("processed payment; time: " + boost::posix_time::to_simple_string(p->time));
+    verboseOutput((boost::format("processed payment: %1% (%2% to %3%)\n") % p->time % p->actor % p->target).str());
 
     addOrUpdateConnections(p, cs, ps);
     printRank(cs, resultsFile);
