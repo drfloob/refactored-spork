@@ -26,6 +26,13 @@
 
 #include "json/json.h"
 
+std::locale defaultLocale("");
+// when constructing a locale with a facet arg, the facet is typically
+// obtained directly from a new-expression: the locale is responsible
+// for calling the matching delete from its own
+// destructor. http://en.cppreference.com/w/cpp/locale/locale/locale
+std::locale localeWithFacet(defaultLocale,
+			    new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
 
 /*------------------------------------------------------------------------------
   Payments are streamed in, parsed into timestamped connections.
@@ -46,11 +53,7 @@ struct payment
     : target(target_), actor(actor_)
   {
     std::stringstream ss(time_);
-    // TODO: check for memory leak. new without delete
-    boost::posix_time::time_input_facet *dif = new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ");
-
-    ss.imbue(std::locale(ss.getloc(), dif));
-
+    ss.imbue(localeWithFacet);
     ss >> time;
   }
 
