@@ -152,7 +152,7 @@ struct singleUserGraphView
   friend std::ostream& operator << (std::ostream &out, const singleUserGraphView& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
-    for (std::unordered_set<connection, connection::Hash>::iterator i = uc.connections.begin(); i != uc.connections.end(); i++) {
+    for (std::unordered_set<connection, connection::Hash>::const_iterator i = uc.connections.begin(); i != uc.connections.end(); i++) {
       out << *i << ", ";
     }
     out << std::endl;
