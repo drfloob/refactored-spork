@@ -29,5 +29,5 @@ fi
 
 cd build
 #cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" ..
-cmake -G "Unix Makefiles" ..
+cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
 make && ./MedianDegreeEngine
