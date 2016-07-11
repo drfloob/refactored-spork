@@ -1,4 +1,4 @@
-# Dependencies
+# Linux Build Dependencies
 
 This project was built on ArchLinux (3.18.1-1, x86_64) with the following dependencies, using the currently available ArchLinux packages as of 2016.07.07:
 
@@ -10,6 +10,16 @@ JsonCpp v1.7.2
 C++11 (required by JsonCpp v1.y.z)
 
 These are the only versions that have been tested, but I expect any relatively recent versions should work fine.
+
+
+# Mac Build Dependencies
+
+If you have a modern mac with XCODE and homebrew, all you should need is:
+
+```
+brew install cmake
+brew install boost
+```
 
 
 # Performance
