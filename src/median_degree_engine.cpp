@@ -172,10 +172,6 @@ void verboseOutput(const std::string& msg)
 #endif
 }
 
-//------------------------------------------------------------------------------
-// HEADER STUFF
-//------------------------------------------------------------------------------
-
 // tags
 struct actor{};
 struct median{};
@@ -198,11 +194,6 @@ typedef boost::multi_index::index<connection_set,actor>::type connection_set_by_
 typedef boost::multi_index::index<connection_set,median>::type connection_set_by_rank;
 
 typedef std::set<std::shared_ptr<const payment>, payment::Compare> payment_set;
-
-//------------------------------------------------------------------------------
-// END HEADER STUFF
-//------------------------------------------------------------------------------
-
 
 template<typename Tag, typename MultiIndexContainer>
 void print_out_by(const MultiIndexContainer& es)
