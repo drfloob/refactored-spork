@@ -260,7 +260,7 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connection_set_by_actor& csIdx) {
   payment_set::iterator it = ps.begin();
   verboseOutput("PURGING");
-  while(headTime - (*it)->time > timeDuration60) {
+  while(headTime - (*it)->time >= timeDuration60) {
     verboseOutput((boost::format("  erasing %1% (%2% old, %3% to %4%)\n") % (*it)->time % ((*it)->time - headTime) % (*it)->actor % (*it)->target).str());
     clearConnectionIfEstablishingPaymentIsBeingRemoved(*it, csIdx);
     clearConnectionIfEstablishingPaymentIsBeingRemoved((*it)->reverse(), csIdx);
@@ -279,7 +279,7 @@ void addOrUpdateConnections(std::shared_ptr<const payment> p, connection_set& cs
   if (rit != ps.rend()) {
     std::shared_ptr<const payment> newestPayment = *rit;
 
-    if (newestPayment->time - p->time > timeDuration60) {
+    if (newestPayment->time - p->time >= timeDuration60) {
       // more than 60 seconds behind; do nothing
       verboseOutput("  60 behind; not adding");
     } else {
