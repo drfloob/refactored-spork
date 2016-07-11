@@ -65,8 +65,14 @@ struct payment
   }
 
   struct Compare {
-    size_t operator () (std::shared_ptr<const payment> c1, std::shared_ptr<const payment> c2) const {
-      return c1->time < c2->time;
+    size_t operator () (std::shared_ptr<const payment> p1, std::shared_ptr<const payment> p2) const {
+      if (p1->time != p2->time)
+	return p1->time < p2->time;
+      if (p1->actor != p2->actor)
+	return p1->actor < p2->actor;
+      if (p1->target != p2->target)
+	return p1->target < p2->target;
+      return false;
     }
   };
 
@@ -312,8 +318,6 @@ int main() {
   std::string currline;
 
   while(std::getline(jstream, currline)) {
-    verboseOutput("read value: " + currline);
-
     parseSuccess = jsonReader.parse(currline, root, false);
     if (!parseSuccess) {
       verboseOutput("discarding payment input; invalid json");
