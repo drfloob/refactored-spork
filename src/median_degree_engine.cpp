@@ -126,6 +126,22 @@ struct singleUserGraphView
     return connections.size();
   }
 
+  void addOrUpdateOrIgnoreIfItsAnOldConnection(std::shared_ptr<const payment> p) {
+    connection c(p);
+    std::unordered_set<connection, connection::Hash>::iterator citer = connections.find(c);
+    if (citer == connections.end()) {
+      connections.insert(c);
+    } else {
+      if (citer->time >= c.time) {
+	// do nothing
+      } else {
+	connections.erase(citer);
+	connections.insert(c);
+      }
+    }
+    // TODO: check if connection exists
+  }
+
   friend std::ostream& operator << (std::ostream &out, const singleUserGraphView& uc)
   {
     out << uc.actor << " (" << uc.connections.size() << " connections; ";
@@ -200,9 +216,9 @@ void _addOrUpdateConnections_process(std::shared_ptr<const payment> p, connectio
     // dude found
     singleUserGraphView uc = *found;
     cs.erase(found);
-    connection c(p);
-    // TODO: check if connection exists
-    uc.connections.insert(c);
+
+    uc.addOrUpdateOrIgnoreIfItsAnOldConnection(p);
+
     cs.insert(uc);
   }
 }
@@ -242,8 +258,9 @@ void clearConnectionIfEstablishingPaymentIsBeingRemoved(std::shared_ptr<const pa
 
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime, connection_set_by_actor& csIdx) {
   payment_set::iterator it = ps.begin();
+  verboseOutput("PURGING");
   while(headTime - (*it)->time > timeDuration60) {
-    // std::cout << boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % it->time % (it->time - headTime) % it->actor % it->target;
+    verboseOutput((boost::format(" (debug) erasing %1% (%2% old, %3% to %4%)\n") % (*it)->time % ((*it)->time - headTime) % (*it)->actor % (*it)->target).str());
     clearConnectionIfEstablishingPaymentIsBeingRemoved(*it, csIdx);
     clearConnectionIfEstablishingPaymentIsBeingRemoved((*it)->reverse(), csIdx);
     it = ps.erase(it);
