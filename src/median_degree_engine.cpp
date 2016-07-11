@@ -50,7 +50,7 @@ struct payment
   boost::posix_time::ptime time;
 
   payment(const std::string& actor_, const std::string& target_, const std::string& time_)
-    : target(target_), actor(actor_)
+    : actor(actor_), target(target_)
   {
     std::stringstream ss(time_);
     ss.imbue(localeWithFacet);
@@ -58,7 +58,7 @@ struct payment
   }
 
   payment(const std::string& actor_, const std::string& target_, const boost::posix_time::ptime time_)
-    : target(target_), actor(actor_), time(time_)
+    : actor(actor_), target(target_), time(time_)
   {}
 
   std::shared_ptr<const payment> reverse() const
