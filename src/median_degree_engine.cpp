@@ -369,6 +369,11 @@ int main() {
       verboseOutput("invalid target field; passing on this payment entry");
       continue;
     }
+    if (boost::trim_copy(root["target"].asString()) == boost::trim_copy(root["actor"].asString())) {
+      // reflexive payment; passing on this payment entry
+      verboseOutput("reflexive payment; passing on this payment entry");
+      continue;
+    }
     if (!root.isMember("created_time")) {
       // missing created_time field; passing on this payment
       // validation will happen in payment constructor

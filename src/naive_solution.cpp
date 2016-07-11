@@ -100,7 +100,7 @@ boost::posix_time::time_duration timeDuration0(0,0,0,0);
 void purgePaymentSet(payment_set& ps, boost::posix_time::ptime headTime) {
   // std::cout << "  in purge\n";
   payment_set::iterator it = ps.begin();
-  while(headTime - it->time > timeDuration60) {
+  while(headTime - it->time >= timeDuration60) {
     // std::cout << boost::format("  purging; time(%1%) actor(%2%) target(%3%)\n") % it->time % it->actor % it->target;
     it = ps.erase(it);
   }
@@ -114,7 +114,7 @@ void processPayment(const payment& p, payment_set& ps)
   if (rit != ps.rend()) {
     payment newestPayment = *rit;
 
-    if (newestPayment.time - p.time > timeDuration60) {
+    if (newestPayment.time - p.time >= timeDuration60) {
       // std::cout << "  more than 60 seconds old\n";
       // more than 60 seconds behind; do nothing
     } else {
@@ -224,6 +224,11 @@ int main() {
     if (!root.isMember("target") || boost::trim_copy(root["target"].asString()) == "") {
       // invalid target field; passing on this payment entry
       // std::cout << "(debug) invalid target field; passing on this payment entry" << std::endl;
+      continue;
+    }
+    if (boost::trim_copy(root["target"].asString()) == boost::trim_copy(root["actor"].asString())) {
+      // reflexive payment; passing on this payment entry
+      // std::cout << "reflexive payment; passing on this payment entry" << std::endl;
       continue;
     }
     if (!root.isMember("created_time")) {
